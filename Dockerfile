@@ -3,4 +3,4 @@ WORKDIR /app
 COPY . /app
 ENV PYTHONUNBUFFERED=1
 EXPOSE 5000
-CMD ["python", "app.py"]
+CMD ["sh", "-c", "python patch_logos.py && python app.py"]
