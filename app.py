@@ -11,10 +11,17 @@ import server
 from scenario_playbooks import PLAYBOOKS, LEVEL_DNA
 from org_training import ORG_TRAINING
 from scenario_factory import SCENARIO_FAMILIES
+from additional_authorities import ADDITIONAL_PROFILES, ADDITIONAL_TRAINING, ADDITIONAL_PLAYBOOKS, ADDITIONAL_FAMILIES
+
+# Extend the verified authority registry before any UI/API route reads it.
+server.ORG_PROFILES.update(ADDITIONAL_PROFILES)
+ORG_TRAINING.update(ADDITIONAL_TRAINING)
+PLAYBOOKS.update(ADDITIONAL_PLAYBOOKS)
+SCENARIO_FAMILIES.update(ADDITIONAL_FAMILIES)
 
 BASE_ACTOR=server.actor_prompt
 BASE_SCORE=server.score
-VERSION='V4.8'
+VERSION='V4.9'
 server.CASES.clear()
 RECENT=defaultdict(lambda: deque(maxlen=80))
 FAMILY_SEEN=defaultdict(lambda: defaultdict(int))
@@ -61,7 +68,6 @@ def case_too_similar(org,c):
     for old in RECENT[org]:
         if nt and nt==norm(old.get('title','')):return True
         ob=set(norm(old.get('brief','')).split())
-        # V4.8: similarity guard now blocks near-duplicates, not merely cases from the same family.
         if nb and ob and len(nb&ob)/max(1,min(len(nb),len(ob)))>.82:return True
     return False
 
@@ -115,17 +121,13 @@ def resilient_generate_case(org,level='בינוני'):
     profile=server.ORG_PROFILES.get(org)
     if not profile:return None
     previous=recent_text(org);candidates=family_candidates(org)
-    # V4.8: use up to four different families before giving up. Families may repeat, plots may not.
     for attempt,f in enumerate(candidates[:4],1):
         c=ai_case(org,level,profile,f,previous,attempt)
         if c:remember(org,c,f['key']);return c
-    # During initial use, a curated unused family remains an instant fallback.
     c,key=untouched_family_fallback(org,level,profile)
     if c:remember(org,c,key);return c
-    # Final rescue pass: ask AI for a fresh case without tying it to a specific family.
     if candidates:
-        f=random.choice(candidates)
-        c=ai_case(org,level,profile,f,previous,99)
+        f=random.choice(candidates);c=ai_case(org,level,profile,f,previous,99)
         if c:remember(org,c,f['key']);return c
     return None
 
@@ -140,10 +142,10 @@ def organization_score(c,h):
 class H(server.H):
     def do_GET(self):
       p=urlparse(self.path).path
-      if p=='/api/version':return self.out({'version':VERSION,'max_title_words':3,'semantic_title_validation':True,'cross_level_duplicate_guard':True,'repeat_family_allowed_new_plot_only':True,'generation_attempts':5,'recent_memory':80})
+      if p=='/api/version':return self.out({'version':VERSION,'authorities':len(server.ORG_PROFILES),'max_title_words':3,'semantic_title_validation':True,'cross_level_duplicate_guard':True,'repeat_family_allowed_new_plot_only':True,'generation_attempts':5,'recent_memory':80})
       if p=='/api/training':return self.out([{'org':o,'investigative_dna':PLAYBOOKS.get(o,{}).get('investigative_dna',''),'focus':t.get('evaluate',[]),'evidence':t.get('evidence',[]),'level_dna':LEVEL_DNA} for o,t in ORG_TRAINING.items()])
       return super().do_GET()
 
 server.generate_case=resilient_generate_case;server.actor_prompt=organization_actor_prompt;server.score=organization_score
 if __name__=='__main__':
- os.chdir(server.ROOT);print('INVESTIGA V4.8 CONTINUOUS UNIQUE GENERATION');ThreadingHTTPServer(('0.0.0.0',server.PORT),H).serve_forever()
+ os.chdir(server.ROOT);print('INVESTIGA V4.9 AUTHORITY EXPANSION');ThreadingHTTPServer(('0.0.0.0',server.PORT),H).serve_forever()
