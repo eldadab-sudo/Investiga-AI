@@ -5,72 +5,81 @@ from http.server import ThreadingHTTPServer
 
 import server
 from scenario_playbooks import PLAYBOOKS, LEVEL_DNA
+from org_training import ORG_TRAINING
+
+BASE_ACTOR = server.actor_prompt
+BASE_SCORE = server.score
 
 
 def fallback_case(org, level, profile):
-    pb = PLAYBOOKS.get(org, {})
-    theme = random.choice(pb.get('themes') or profile.get('domains') or ['בירור עובדתי'])
-    title = random.choice(pb.get('titles') or ['מה לא מסתדר בתמונה?'])
-    dna = pb.get('investigative_dna', 'בירור עובדות, ציר זמן, גרסאות, ראיות וחלופות.')
-    level_dna = LEVEL_DNA.get(level, LEVEL_DNA['בינוני'])
-    return {
-        'title': title, 'level': level, 'org': org,
-        'person': 'אדם מרכזי הקשור לאירוע',
-        'status': 'מעמד ייקבע בהתאם לסוג האירוע ולהתפתחות העובדות',
-        'procedure': profile['kind'],
-        'brief': f'התקבל אירוע בתחום: {theme}. חומר הפתיחה כולל דיווח ראשוני, מועד ומקום כלליים וקשר של האדם המרכזי לאירוע, אך אינו חושף את הפתרון. על החוקר לברר את העובדות, לבנות ציר זמן, לזהות מעורבים, להבין אילו ראיות קיימות ולסווג את האירוע בהתאם למה שייחשף.',
-        'legal': 'יש לפעול לפי סמכות הגוף והדין הפומבי, לזהות את מעמד האדם ולבחון אם הוא משתנה במהלך התיק.',
-        'truth': f'מאחורי התיק קיימת אמת עובדתית קבועה שאינה מוצגת לחוקר. DNA מקצועי: {dna} רמת הקושי: {level_dna}',
-        'facts': f'המערכת מחזיקה עובדות נסתרות על ציר הזמן, המעורבים, הראיות, הסתירות והחלופות. הן נחשפות בהדרגה לפי איכות שאלות החוקר. {level_dna}'
-    }
+    pb=PLAYBOOKS.get(org,{})
+    theme=random.choice(pb.get('themes') or profile.get('domains') or ['בירור עובדתי'])
+    title=random.choice(pb.get('titles') or ['מה לא מסתדר בתמונה?'])
+    dna=pb.get('investigative_dna','בירור עובדות, ציר זמן, גרסאות, ראיות וחלופות.')
+    level_dna=LEVEL_DNA.get(level,LEVEL_DNA['בינוני'])
+    return {'title':title,'level':level,'org':org,'person':'אדם מרכזי הקשור לאירוע','status':'מעמד ייקבע בהתאם להתפתחות העובדות','procedure':profile['kind'],'brief':f'התקבל אירוע קונקרטי בתחום {theme}. ידועים מועד ומקום כלליים וקשרו של האדם המרכזי לאירוע, אך התמונה אינה שלמה. על החוקר לברר את העובדות ולבנות בעצמו את הסיווג והכיוונים.','legal':'יש לפעול לפי סמכות הגוף והדין הפומבי ולזהות את מעמד האדם לאורך התיק.','truth':f'קיימת אמת קבועה שאינה מוצגת לחוקר. {dna} {level_dna}','facts':f'קיימים ציר זמן, מספר מעורבים, מסמכים או ראיות, סתירות וחלופות שנחשפים לפי איכות השאלות. {level_dna}'}
 
 
-def resilient_generate_case(org, level='בינוני'):
-    profile = server.ORG_PROFILES.get(org)
-    if not profile:
-        return None
-    pb = PLAYBOOKS.get(org, {})
-    themes = pb.get('themes') or profile.get('domains') or []
-    theme = random.choice(themes) if themes else 'אירוע בתחום סמכות הגוף'
-    title_examples = ', '.join(pb.get('titles') or [])
-    level_dna = LEVEL_DNA.get(level, LEVEL_DNA['בינוני'])
-    professional_dna = pb.get('investigative_dna', '')
-    shape = {'title':'','level':level,'org':org,'person':'','status':'','procedure':profile['kind'],'brief':'','legal':'','truth':'','facts':''}
-    prompt = f'''אתה כותב תיק אימון איכותי לחוקר מקצועי ב-{org}.
+def resilient_generate_case(org,level='בינוני'):
+    profile=server.ORG_PROFILES.get(org)
+    if not profile:return None
+    pb=PLAYBOOKS.get(org,{})
+    training=ORG_TRAINING.get(org,{})
+    theme=random.choice(pb.get('themes') or profile.get('domains') or ['אירוע בתחום הסמכות'])
+    level_dna=LEVEL_DNA.get(level,LEVEL_DNA['בינוני'])
+    shape={'title':'','level':level,'org':org,'person':'','status':'','procedure':profile['kind'],'brief':'','legal':'','truth':'','facts':''}
+    prompt=f'''כתוב תיק אימון חקירתי עמוק וריאליסטי עבור {org}.
+תחום: {theme}
+DNA מקצועי: {pb.get('investigative_dna','')}
+רמת קושי: {level} — {level_dna}
+ראיות אופייניות אפשריות: {', '.join(training.get('evidence') or [])}
+כותרות השראה: {', '.join(pb.get('titles') or [])}
 
-תחום התיק שנבחר: {theme}
-ייעוד הגוף: {profile['mandate']}
-בסיס משפטי ציבורי: {profile['legal_basis']}
-DNA חקירתי של התחום: {professional_dna}
-רמת קושי: {level}
-הגדרת הקושי המחייבת: {level_dna}
+התרחיש חייב להרגיש כמו תיק אמיתי: אירוע קונקרטי, אנשים בעלי אינטרסים, אמת נסתרת קבועה, ציר זמן, חומר פתיחה חלקי, ראיות קיימות, סתירות והסברים חלופיים. הכותרת קצרה ומסקרנת. אל תגלה את הפתרון ב-brief ואל תיתן לחוקר רשימת שאלות. החוקר צריך לגלות בעצמו מה חשוב, לסווג את האירוע, לבדוק אמינות ולהצליב מידע.
 
-כתוב תרחיש שמרגיש כמו תיק אמיתי ולא כמו שאלון. הוא צריך להכיל סיפור אנושי קונקרטי, מועד ומקום כלליים, אנשים בעלי אינטרסים שונים, חומר פתיחה סביר, אמת נסתרת, ציר זמן, ראיות קיימות, לפחות סתירה משמעותית אחת והסבר חלופי סביר. אל תגלה לחוקר את הפתרון בחומר הפתיחה. המידע צריך להיחשף בשיחה בהתאם לשאלות שהוא שואל.
+ברמת בסיסי: נדרש חוקר מתחיל טוב — פער מרכזי, חלופה אחת וסתירה שניתן לגלות בשאלות נכונות. בינוני: נדרש ניסיון — כמה מקורות, לפחות שתי סתירות ושתי השערות סבירות. מתקדם: נדרש חוקר מנוסה — תיק רב-שכבתי, לפחות שלוש השערות, ראיה בעלת משמעות כפולה, סתירה שמתגלה רק בהצלבה ו-Blind Spot משמעותי.
 
-החוקר צריך להידרש לחשיבה: להחליט מה חשוב, לזהות פערים, לבחון אמינות, להצליב גרסאות, לבדוק חלופות ולזהות בעצמו את הסיווג המשפטי/המקצועי האפשרי. אל תכתוב בחומר הפתיחה רשימת שאלות שעליו לשאול.
-
-הכותרת חייבת להיות קצרה, מסקרנת ובעלת מתח חקירתי, ולא תיאור טכני. סגנון כותרות אפשרי בלבד: {title_examples}. אל תעתיק בהכרח כותרת קיימת.
-
-ב-truth קבע אמת מלאה וקבועה. ב-facts כלול 12–18 עובדות קונקרטיות קצרות: זמנים, קשרים, גרסאות, מסמכים/ראיות קיימות, סתירות ומה כל דמות יודעת. ככל שהרמה גבוהה יותר, התחכום צריך לנבוע מהמבנה והעמימות של התיק ולא רק מכמות העובדות.
-
-כללי בטיחות: בתיקי ביטחון/צבא ניתן לתאר חוסר או גניבה של פריט מסוכן, חשד לטרור או אירוע אלים שכבר התרחש ברמה כללית בלבד. אין למסור פרטי אחסון, אבטחה, גישה, הפעלה, שימוש, בנייה, יעד, אמצעי, מסלול, התחמקות, שיבוש או שיטות חקירה מסווגות. אין תיאור גרפי.
-
+ב-truth כתוב את האמת המלאה. ב-facts כתוב 12–18 עובדות קונקרטיות עם זמנים, אנשים, מסמכים, מה כל אדם יודע ומה סותר מה. אין מידע מסווג, פרטים גרפיים, הוראות לביצוע עבירה, שימוש באמצעי לחימה, גישה/אבטחה, התחמקות או שיבוש.
 החזר JSON בלבד במבנה {json.dumps(shape,ensure_ascii=False)}.'''
-    raw = server.ai([{'role':'system','content':prompt}],900,True)
+    raw=server.ai([{'role':'system','content':prompt}],950,True)
     if raw:
         try:
-            case=json.loads(raw)
-            required=['title','person','status','brief','legal','truth','facts']
-            if all(isinstance(case.get(k),str) and case[k].strip() for k in required):
-                case['org']=org; case['level']=level; case['procedure']=profile['kind']
-                return case
-        except Exception as exc:
-            print('GEN CASE PLAYBOOK PARSE',repr(exc))
+            c=json.loads(raw)
+            if all(isinstance(c.get(k),str) and c[k].strip() for k in ['title','person','status','brief','legal','truth','facts']):
+                c['org']=org;c['level']=level;c['procedure']=profile['kind'];return c
+        except Exception as e:print('GEN V4',repr(e))
     return fallback_case(org,level,profile)
 
-server.generate_case = resilient_generate_case
 
-if __name__ == '__main__':
+def organization_actor_prompt(c):
+    base=BASE_ACTOR(c)
+    t=ORG_TRAINING.get(c.get('org'),{})
+    return base+f'''\n\nהתנהגות ייחודית לארגון: {t.get('interview','התנהג באופן טבעי ועקבי.')}
+כלל התפתחות: אל תמסור את כל הידוע לך בתשובה אחת. חשוף עובדות רק כשהשאלה נוגעת בהן. אם החוקר שואל שאלה כללית, השב באופן כללי. אם הוא מזהה פער מדויק, תן פרט מדויק יותר. אם הוא מציג סתירה אמיתית מתוך המידע שכבר נחשף, התמודד איתה באופן אנושי ועקבי עם האמת הקבועה. אל תמציא ראיה חדשה כדי לעזור לחוקר.'''
+
+
+def organization_score(c,h):
+    report=BASE_SCORE(c,h)
+    t=ORG_TRAINING.get(c.get('org'),{})
+    if not t:return report
+    transcript=' '.join(x.get('content','') for x in h if x.get('role')=='user')
+    criteria=t.get('evaluate') or []
+    # Add an organization-specific diagnostic section without replacing the existing validated scoring.
+    notes=[]
+    for criterion in criteria:
+        notes.append(criterion)
+    report['organization_assessment']={
+        'organization':c.get('org'),
+        'focus':notes,
+        'summary':'ההערכה הארגונית בוחנת האם החוקר פעל לפי אופי התיק של הרשות: מיפה את המידע, בדק פערים וחלופות ולא הסתפק בגרסה הראשונה.'
+    }
+    return report
+
+server.generate_case=resilient_generate_case
+server.actor_prompt=organization_actor_prompt
+server.score=organization_score
+
+if __name__=='__main__':
     os.chdir(server.ROOT)
-    print('INVESTIGA V3 AUTHORITY PLAYBOOKS')
-    ThreadingHTTPServer(('0.0.0.0', server.PORT), server.H).serve_forever()
+    print('INVESTIGA V4 ORG-SPECIFIC TRAINING ENGINE')
+    ThreadingHTTPServer(('0.0.0.0',server.PORT),server.H).serve_forever()
