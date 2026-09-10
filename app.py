@@ -2,6 +2,7 @@ import json
 import os
 import random
 from http.server import ThreadingHTTPServer
+from urllib.parse import urlparse
 
 import server
 from scenario_playbooks import PLAYBOOKS, LEVEL_DNA
@@ -9,6 +10,7 @@ from org_training import ORG_TRAINING
 
 BASE_ACTOR = server.actor_prompt
 BASE_SCORE = server.score
+VERSION = 'V4.1'
 
 
 def fallback_case(org, level, profile):
@@ -62,18 +64,26 @@ def organization_score(c,h):
     report=BASE_SCORE(c,h)
     t=ORG_TRAINING.get(c.get('org'),{})
     if not t:return report
-    transcript=' '.join(x.get('content','') for x in h if x.get('role')=='user')
-    criteria=t.get('evaluate') or []
-    # Add an organization-specific diagnostic section without replacing the existing validated scoring.
-    notes=[]
-    for criterion in criteria:
-        notes.append(criterion)
     report['organization_assessment']={
         'organization':c.get('org'),
-        'focus':notes,
+        'focus':t.get('evaluate') or [],
         'summary':'ההערכה הארגונית בוחנת האם החוקר פעל לפי אופי התיק של הרשות: מיפה את המידע, בדק פערים וחלופות ולא הסתפק בגרסה הראשונה.'
     }
     return report
+
+
+class H(server.H):
+    def do_GET(self):
+        p=urlparse(self.path).path
+        if p=='/api/version':
+            return self.out({'version':VERSION})
+        if p=='/api/training':
+            rows=[]
+            for org,t in ORG_TRAINING.items():
+                pb=PLAYBOOKS.get(org,{})
+                rows.append({'org':org,'investigative_dna':pb.get('investigative_dna',''),'focus':t.get('evaluate',[]),'evidence':t.get('evidence',[]),'level_dna':LEVEL_DNA})
+            return self.out(rows)
+        return super().do_GET()
 
 server.generate_case=resilient_generate_case
 server.actor_prompt=organization_actor_prompt
@@ -81,5 +91,5 @@ server.score=organization_score
 
 if __name__=='__main__':
     os.chdir(server.ROOT)
-    print('INVESTIGA V4 ORG-SPECIFIC TRAINING ENGINE')
-    ThreadingHTTPServer(('0.0.0.0',server.PORT),server.H).serve_forever()
+    print('INVESTIGA V4.1 ORG-SPECIFIC TRAINING ENGINE')
+    ThreadingHTTPServer(('0.0.0.0',server.PORT),H).serve_forever()
