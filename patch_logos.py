@@ -26,12 +26,12 @@ const FALLBACK_MARKS={};'''
         s=s.replace(needle,authority_patch,1)
 
     # Persistent app mark: visible on every SPA screen and while scrolling.
-    brand_css='''.app-brand-mark{width:48px;height:48px;border-radius:12px;object-fit:cover;box-shadow:0 0 0 1px #31506a,0 6px 18px rgba(0,0,0,.28);flex:0 0 auto}.brand-lockup{display:flex;align-items:center;gap:12px}header{position:sticky;top:0;z-index:50;background:#0d1721ee;backdrop-filter:blur(8px)}.page-brand{display:flex;justify-content:center;margin:0 0 18px}.page-brand .app-brand-mark{width:68px;height:68px;border-radius:17px}@media(max-width:760px){.app-brand-mark{width:42px;height:42px;border-radius:11px}.page-brand .app-brand-mark{width:56px;height:56px;border-radius:14px}}'''
+    brand_css='''.app-brand-mark{width:58px;height:58px;border-radius:14px;object-fit:cover;box-shadow:0 0 0 1px #31506a,0 6px 18px rgba(0,0,0,.28);flex:0 0 auto}.brand-lockup{display:flex;align-items:center;justify-content:center;gap:14px;width:100%;direction:ltr}.brand-lockup>div{text-align:left}.brand-lockup .brand{font-size:24px}.brand-lockup .muted{font-size:14px;margin-top:4px}header{position:sticky;top:0;z-index:50;background:#0d1721ee;backdrop-filter:blur(8px);justify-content:center;padding:16px 20px}.page-brand{display:flex;justify-content:center;margin:0 0 18px}.page-brand .app-brand-mark{width:76px;height:76px;border-radius:18px}@media(max-width:760px){header{padding:14px 12px}.app-brand-mark{width:52px;height:52px;border-radius:12px}.brand-lockup{gap:11px}.brand-lockup .brand{font-size:21px}.brand-lockup .muted{font-size:12px}.page-brand .app-brand-mark{width:68px;height:68px;border-radius:16px}}'''
     if '.app-brand-mark{' not in s:
         s=s.replace('</style>',brand_css+'</style>',1)
 
-    old='<header><div class="brand">INVESTIGA <span id="version" class="tag">...</span></div>'
-    new='<header><div class="brand-lockup"><img class="app-brand-mark" src="/investiga-mark.webp" alt="INVESTIGA"><div class="brand">INVESTIGA <span id="version" class="tag">...</span></div></div>'
+    old='<header><div class="brand">INVESTIGA <span id="version" class="tag">...</span></div><div class="muted">AI Investigation Simulator</div></header>'
+    new='<header><div class="brand-lockup"><img class="app-brand-mark" src="/investiga-mark.webp" alt="INVESTIGA"><div><div class="brand">INVESTIGA <span id="version" class="tag">V4.9</span></div><div class="muted">AI Investigation Simulator</div></div></div></header>'
     if old in s:
         s=s.replace(old,new,1)
 
